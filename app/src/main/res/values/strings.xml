@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Socks Forward</string>
+
+    <string name="placeholder_dash">—</string>
+    <string name="placeholder_zero_bytes">0 Б</string>
+    <string name="placeholder_zero">0</string>
+
+    <string name="status_stopped">Остановлен</string>
+    <string name="status_starting">Запуск…</string>
+    <string name="status_running">Работает</string>
+    <string name="status_running_uptime">Работает · %1$s</string>
+    <string name="status_error">Ошибка</string>
+
+    <string name="start">Запустить</string>
+    <string name="stop">Остановить</string>
+    <string name="settings">Настройки</string>
+
+    <string name="stats_download">Принято</string>
+    <string name="stats_upload">Отдано</string>
+    <string name="stats_active">Активных</string>
+    <string name="stats_total">Всего</string>
+
+    <string name="connections_title">Соединения</string>
+    <string name="no_connections">Нет активных соединений</string>
+    <string name="lan_hint">В локальной сети: %1$s</string>
+    <string name="vpn_active">VPN активен — трафик идёт через него</string>
+    <string name="vpn_inactive">VPN не обнаружен — трафик идёт напрямую</string>
+    <string name="warning_open">Прокси открыт для всех в локальной сети и работает без пароля.</string>
+
+    <string name="connection_bytes">↓ %1$s · ↑ %2$s</string>
+    <string name="connection_active">активно</string>
+    <string name="connection_connecting">подключение</string>
+    <string name="connection_failed">ошибка</string>
+
+    <string name="settings_network">Сеть</string>
+    <string name="bind_local">Только этот телефон (127.0.0.1)</string>
+    <string name="bind_all">Все интерфейсы (0.0.0.0)</string>
+    <string name="port_hint">Порт</string>
+    <string name="port_helper">1024–65535. Порты ниже 1024 требуют root.</string>
+
+    <string name="settings_auth">Авторизация</string>
+    <string name="auth_switch">Требовать логин и пароль</string>
+    <string name="username_hint">Логин</string>
+    <string name="password_hint">Пароль</string>
+    <string name="auth_helper">Только латинские буквы, цифры и символы ASCII</string>
+
+    <string name="settings_limits">Ограничения</string>
+    <string name="max_connections_hint">Максимум соединений</string>
+    <string name="idle_timeout_hint">Таймаут простоя, мин</string>
+
+    <string name="settings_note">Трафик выходит из телефона обычными сокетами, поэтому при включённом VPN он автоматически идёт через VPN. Не исключайте приложение из VPN и не используйте раздельное туннелирование. Изменения применяются после перезапуска прокси.</string>
+
+    <string name="save">Сохранить</string>
+    <string name="saved">Сохранено</string>
+    <string name="saved_restart">Сохранено. Перезапустите прокси, чтобы применить изменения</string>
+
+    <string name="error_port">Порт должен быть от 1024 до 65535</string>
+    <string name="error_max_connections">От 1 до %1$d</string>
+    <string name="error_idle_timeout">От 1 до 1440 минут</string>
+    <string name="error_credentials">Заполните логин и пароль (только ASCII)</string>
+
+    <string name="notification_channel">Прокси</string>
+    <string name="notification_channel_description">Уведомление о работе SOCKS5-прокси</string>
+    <string name="notification_starting">Запуск прокси…</string>
+    <string name="notification_running_title">SOCKS5 · порт %1$d</string>
+    <string name="notification_running_text">%1$d соед. · ↓ %2$s · ↑ %3$s</string>
+</resources>

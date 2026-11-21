@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="primary">#0F766E</color>
+    <color name="on_primary">#FFFFFF</color>
+    <color name="primary_container">#CCFBF1</color>
+    <color name="on_primary_container">#042F2E</color>
+
+    <color name="status_running">#2E7D32</color>
+    <color name="status_connecting">#EF6C00</color>
+    <color name="status_error">#C62828</color>
+    <color name="status_idle">#757575</color>
+
+    <color name="launcher_background">#0F766E</color>
+</resources>
