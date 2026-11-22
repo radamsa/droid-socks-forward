@@ -19,6 +19,15 @@ SOCKS5-прокси, который работает на самом телеф�
 ./gradlew test               # юнит-тесты протокола и сервера (:core)
 ```
 
+Те же шаги и подготовка APK через Make:
+
+```bash
+make setup   # проверка Android SDK, local.properties, подготовка wrapper
+make build   # debug APK + тесты core
+make release # release APK + тесты, готовый файл в dist/socks-forward-<версия>.apk
+make clean   # очистка результатов сборки
+```
+
 Release-сборка подписывается debug-ключом, если рядом нет `keystore.properties`:
 
 ```properties
