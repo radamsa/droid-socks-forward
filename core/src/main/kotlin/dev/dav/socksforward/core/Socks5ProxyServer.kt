@@ -63,28 +63,27 @@ class Socks5ProxyServer(
     private val failedConnections = AtomicLong(0)
     private val startedAt = AtomicLong(0)
 
-    @Volatile
-    private var serverSocket: ServerSocket? = null
+    private val serverSockets = java.util.concurrent.CopyOnWriteArrayList<ServerSocket>()
 
     @Volatile
     private var stopping = false
 
-    private var acceptJob: Job? = null
+    private val acceptJobs = mutableListOf<Job>()
     private var statsJob: Job? = null
 
     fun start(): Result<Unit> {
-        val socket = try {
-            createServerSocket()
+        val sockets = try {
+            createServerSockets()
         } catch (error: Exception) {
             return Result.failure(error.toBindException())
         }
 
-        serverSocket = socket
+        serverSockets.addAll(sockets)
         startedAt.set(System.currentTimeMillis())
-        listener.onStarted(displayAddress(socket.inetAddress), socket.localPort)
+        listener.onStarted(sockets.map { displayAddress(it.inetAddress) }, sockets.first().localPort)
         listener.onStats(snapshot())
 
-        acceptJob = scope.launch { acceptLoop(socket) }
+        sockets.forEach { socket -> acceptJobs += scope.launch { acceptLoop(socket) } }
         statsJob = scope.launch {
             while (isActive) {
                 delay(STATS_INTERVAL_MS)
@@ -97,22 +96,44 @@ class Socks5ProxyServer(
     fun stop() {
         if (stopping) return
         stopping = true
-        runCatching { serverSocket?.close() }
+        serverSockets.forEach { runCatching { it.close() } }
         connections.values.forEach { it.closeSockets() }
-        acceptJob?.cancel()
+        acceptJobs.forEach { it.cancel() }
         statsJob?.cancel()
         listener.onStopped(null)
         scope.cancel()
         runCatching { dispatcher.close() }
     }
 
-    private fun createServerSocket(): ServerSocket {
-        if (!config.isWildcard) {
-            return ServerSocket().apply {
-                reuseAddress = true
-                bind(InetSocketAddress(InetAddress.getByName(config.bindAddress), config.port), BACKLOG)
+    private fun createServerSockets(): List<ServerSocket> {
+        if (config.isWildcard) return listOf(createWildcardSocket())
+
+        // One socket per checked address. An address whose interface is
+        // currently down cannot be bound; it is skipped so the proxy still
+        // starts on the remaining addresses instead of failing outright.
+        // With port 0 the first successful bind picks the ephemeral port and
+        // the rest bind the same one explicitly.
+        val sockets = mutableListOf<ServerSocket>()
+        var bindPort = config.port
+        var lastError: IOException? = null
+        for (address in config.bindAddresses.distinct()) {
+            try {
+                sockets += ServerSocket().apply {
+                    reuseAddress = true
+                    bind(InetSocketAddress(InetAddress.getByName(address), bindPort), BACKLOG)
+                    if (bindPort == 0) bindPort = localPort
+                }
+            } catch (error: IOException) {
+                lastError = error
             }
         }
+        if (sockets.isEmpty()) {
+            throw lastError ?: BindException("Ни один адрес не удалось привязать")
+        }
+        return sockets
+    }
+
+    private fun createWildcardSocket(): ServerSocket {
         // Wildcard: try a dual stack IPv6 socket first so LAN clients can use
         // either family, and fall back to plain IPv4 when IPv6 is unavailable.
         val dualStack = ServerSocket()
@@ -300,10 +321,13 @@ class Socks5ProxyServer(
         connections = connections.values.map { it.toInfo() }.sortedBy { it.id },
     )
 
-    private fun displayAddress(address: InetAddress?): String = when {
-        address == null -> config.bindAddress
-        address.isAnyLocalAddress -> ProxyConfig.WILDCARD_IPV4
-        else -> address.hostAddress ?: config.bindAddress
+    private fun displayAddress(address: InetAddress?): String {
+        val fallback = config.bindAddresses.firstOrNull() ?: ProxyConfig.WILDCARD_IPV4
+        return when {
+            address == null -> fallback
+            address.isAnyLocalAddress -> ProxyConfig.WILDCARD_IPV4
+            else -> address.hostAddress ?: fallback
+        }
     }
 
     private fun describe(address: SocketAddress?): String = when (address) {

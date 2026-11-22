@@ -34,25 +34,20 @@
                 android:text="@string/settings_network"
                 android:textAppearance="?attr/textAppearanceTitleMedium" />
 
-            <RadioGroup
-                android:id="@+id/bindGroup"
+            <LinearLayout
+                android:id="@+id/bindList"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:orientation="vertical">
+                android:orientation="vertical" />
 
-                <RadioButton
-                    android:id="@+id/bind_local"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/bind_local" />
-
-                <RadioButton
-                    android:id="@+id/bind_all"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/bind_all" />
-            </RadioGroup>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:alpha="0.6"
+                android:text="@string/bind_helper"
+                android:textSize="11sp" />
 
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/portLayout"

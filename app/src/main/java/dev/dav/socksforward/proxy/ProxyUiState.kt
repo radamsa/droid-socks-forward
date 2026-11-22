@@ -13,7 +13,7 @@ enum class ProxyPhase {
 data class ProxyUiState(
     val phase: ProxyPhase = ProxyPhase.STOPPED,
     val config: ProxyConfig = ProxyConfig(),
-    val listenAddress: String? = null,
+    val listenAddresses: List<String> = emptyList(),
     val listenPort: Int? = null,
     val stats: ProxyStats? = null,
     val error: String? = null,

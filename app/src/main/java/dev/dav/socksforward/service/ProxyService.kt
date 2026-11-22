@@ -92,9 +92,9 @@ class ProxyService : Service(), ProxyListener {
         }
     }
 
-    override fun onStarted(listenAddress: String, listenPort: Int) {
+    override fun onStarted(listenAddresses: List<String>, listenPort: Int) {
         this.listenPort = listenPort
-        app.proxyManager.onStarted(listenAddress, listenPort)
+        app.proxyManager.onStarted(listenAddresses, listenPort)
         notifications.post(notifications.buildRunning(listenPort, ProxyStats()))
     }
 

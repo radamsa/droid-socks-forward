@@ -49,7 +49,7 @@ class ProxyManager(
                 config = config,
                 error = null,
                 stats = null,
-                listenAddress = null,
+                listenAddresses = emptyList(),
                 listenPort = null,
             )
         }
@@ -77,7 +77,7 @@ class ProxyManager(
                 it.copy(
                     phase = ProxyPhase.STOPPED,
                     stats = null,
-                    listenAddress = null,
+                    listenAddresses = emptyList(),
                     listenPort = null,
                     error = null,
                 )
@@ -85,11 +85,11 @@ class ProxyManager(
         }
     }
 
-    fun onStarted(listenAddress: String, listenPort: Int) {
+    fun onStarted(listenAddresses: List<String>, listenPort: Int) {
         _state.update {
             it.copy(
                 phase = ProxyPhase.RUNNING,
-                listenAddress = listenAddress,
+                listenAddresses = listenAddresses,
                 listenPort = listenPort,
                 error = null,
             )
@@ -110,7 +110,7 @@ class ProxyManager(
             it.copy(
                 phase = if (error == null) ProxyPhase.STOPPED else ProxyPhase.ERROR,
                 stats = null,
-                listenAddress = null,
+                listenAddresses = emptyList(),
                 listenPort = null,
                 error = error,
             )

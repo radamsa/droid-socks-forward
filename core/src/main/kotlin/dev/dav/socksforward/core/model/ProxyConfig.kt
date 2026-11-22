@@ -6,7 +6,7 @@ package dev.dav.socksforward.core.model
  * consistent for the whole lifetime of the server.
  */
 data class ProxyConfig(
-    val bindAddress: String = DEFAULT_BIND_ADDRESS,
+    val bindAddresses: List<String> = listOf(DEFAULT_BIND_ADDRESS),
     val port: Int = DEFAULT_PORT,
     val auth: AuthCredentials? = null,
     val maxConnections: Int = DEFAULT_MAX_CONNECTIONS,
@@ -15,15 +15,21 @@ data class ProxyConfig(
     val idleTimeoutMs: Int = DEFAULT_IDLE_TIMEOUT_MS,
 ) {
     val isWildcard: Boolean
-        get() = bindAddress == WILDCARD_IPV4 || bindAddress == WILDCARD_IPV6
+        get() = bindAddresses.any { it == WILDCARD_IPV4 || it == WILDCARD_IPV6 }
 
     /** Human readable, non-fatal validation problems. Empty when the config is usable. */
     fun validationErrors(): List<String> = buildList {
         if (port !in MIN_PORT..MAX_PORT) {
             add("Порт должен быть от $MIN_PORT до $MAX_PORT")
         }
-        if (!isValidListenAddress(bindAddress)) {
-            add("Некорректный IP-адрес для прослушивания")
+        when {
+            bindAddresses.isEmpty() -> add("Не выбран ни один адрес для прослушивания")
+            bindAddresses.any { !isValidListenAddress(it) } ->
+                add("Некорректный IP-адрес для прослушивания")
+            // A wildcard socket already covers every address; mixing them only
+            // produces EADDRINUSE against the wildcard socket.
+            isWildcard && bindAddresses.distinct().size > 1 ->
+                add("«Все интерфейсы» нельзя сочетать с отдельными адресами")
         }
         if (maxConnections !in 1..MAX_CONNECTIONS_LIMIT) {
             add("Лимит соединений: от 1 до $MAX_CONNECTIONS_LIMIT")

@@ -23,7 +23,6 @@
 
     <string name="connections_title">Соединения</string>
     <string name="no_connections">Нет активных соединений</string>
-    <string name="lan_hint">В локальной сети: %1$s</string>
     <string name="vpn_active">VPN активен — трафик идёт через него</string>
     <string name="vpn_inactive">VPN не обнаружен — трафик идёт напрямую</string>
     <string name="warning_open">Прокси открыт для всех в локальной сети и работает без пароля.</string>
@@ -34,8 +33,11 @@
     <string name="connection_failed">ошибка</string>
 
     <string name="settings_network">Сеть</string>
-    <string name="bind_local">Только этот телефон (127.0.0.1)</string>
+    <string name="bind_helper">Отметьте адреса, на которых принимать подключения</string>
+    <string name="bind_loopback">127.0.0.1 — только этот телефон</string>
+    <string name="bind_unavailable">%1$s · сейчас недоступен</string>
     <string name="bind_all">Все интерфейсы (0.0.0.0)</string>
+    <string name="error_bind_empty">Выберите хотя бы один адрес</string>
     <string name="port_hint">Порт</string>
     <string name="port_helper">1024–65535. Порты ниже 1024 требуют root.</string>
 

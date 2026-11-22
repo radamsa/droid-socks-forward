@@ -204,22 +204,20 @@ class MainActivity : AppCompatActivity() {
         binding.errorText.text = state.error.orEmpty()
 
         val port = state.listenPort
-        binding.addressText.text = if (running && port != null) {
-            "${state.listenAddress ?: ProxyConfig.WILDCARD_IPV4}:$port"
-        } else {
-            "—"
-        }
+        binding.addressText.text = when {
+            !running || port == null -> "—"
 
-        val lanAddresses = if (running && port != null && state.config.isWildcard) {
-            NetworkAddresses.localIpv4()
-        } else {
-            emptyList()
-        }
-        binding.lanText.isVisible = lanAddresses.isNotEmpty()
-        binding.lanText.text = if (lanAddresses.isNotEmpty()) {
-            getString(R.string.lan_hint, lanAddresses.joinToString(", ") { "$it:$port" })
-        } else {
-            ""
+            // Wildcard: 0.0.0.0 is not a connectable address, so list every
+            // address the device actually answers on.
+            state.config.isWildcard -> NetworkAddresses.localIpv4()
+                .takeIf { it.isNotEmpty() }
+                ?.joinToString("\n") { "$it:$port" }
+                ?: "${ProxyConfig.WILDCARD_IPV4}:$port"
+
+            // Concrete checkboxes: one line per bound address (loopback
+            // included). Addresses that could not be bound are absent.
+            else -> state.listenAddresses.ifEmpty { state.config.bindAddresses }
+                .joinToString("\n") { "$it:$port" }
         }
         binding.vpnText.isVisible = running
 

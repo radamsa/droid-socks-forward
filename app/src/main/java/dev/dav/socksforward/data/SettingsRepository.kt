@@ -15,9 +15,7 @@ class SettingsRepository(context: Context) {
         .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     fun load(): ProxyConfig {
-        val bindAddress = prefs.getString(KEY_BIND_ADDRESS, ProxyConfig.DEFAULT_BIND_ADDRESS)
-            ?.takeIf(ProxyConfig::isValidListenAddress)
-            ?: ProxyConfig.DEFAULT_BIND_ADDRESS
+        val bindAddresses = loadBindAddresses()
 
         val port = prefs.getInt(KEY_PORT, ProxyConfig.DEFAULT_PORT)
             .takeIf { it in ProxyConfig.MIN_PORT..ProxyConfig.MAX_PORT }
@@ -36,7 +34,7 @@ class SettingsRepository(context: Context) {
             .coerceIn(MIN_IDLE_MINUTES, MAX_IDLE_MINUTES)
 
         return ProxyConfig(
-            bindAddress = bindAddress,
+            bindAddresses = bindAddresses,
             port = port,
             auth = auth,
             maxConnections = maxConnections,
@@ -44,9 +42,26 @@ class SettingsRepository(context: Context) {
         )
     }
 
+    /**
+     * Checked addresses from the checkbox list. Falls back to the pre-checkbox
+     * single-address preference, so an update keeps the user's choice.
+     */
+    private fun loadBindAddresses(): List<String> {
+        val stored = prefs.getStringSet(KEY_BIND_ADDRESSES, null)
+            ?: prefs.getString(KEY_BIND_ADDRESS, null)
+                ?.takeIf(ProxyConfig::isValidListenAddress)
+                ?.let { setOf(it) }
+            ?: emptySet()
+        return stored
+            .filter(ProxyConfig::isValidListenAddress)
+            .distinct()
+            .ifEmpty { listOf(ProxyConfig.DEFAULT_BIND_ADDRESS) }
+    }
+
     fun save(config: ProxyConfig, authEnabled: Boolean, username: String, password: String) {
         prefs.edit {
-            putString(KEY_BIND_ADDRESS, config.bindAddress)
+            putStringSet(KEY_BIND_ADDRESSES, config.bindAddresses.toSet())
+            remove(KEY_BIND_ADDRESS)
             putInt(KEY_PORT, config.port)
             putBoolean(KEY_AUTH_ENABLED, authEnabled)
             putString(KEY_USERNAME, username)
@@ -65,6 +80,7 @@ class SettingsRepository(context: Context) {
     companion object {
         private const val PREFS_NAME = "socks_forward_settings"
         private const val KEY_BIND_ADDRESS = "bind_address"
+        private const val KEY_BIND_ADDRESSES = "bind_addresses"
         private const val KEY_PORT = "port"
         private const val KEY_AUTH_ENABLED = "auth_enabled"
         private const val KEY_USERNAME = "username"

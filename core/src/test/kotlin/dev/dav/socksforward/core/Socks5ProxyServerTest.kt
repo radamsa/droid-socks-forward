@@ -3,9 +3,11 @@ package dev.dav.socksforward.core
 import dev.dav.socksforward.core.model.AuthCredentials
 import dev.dav.socksforward.core.model.ProxyConfig
 import dev.dav.socksforward.core.model.ProxyStats
+import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.net.InetAddress
+import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
 import kotlin.concurrent.thread
@@ -15,6 +17,7 @@ import kotlin.test.assertTrue
 import kotlin.test.fail
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import org.junit.Assume.assumeTrue
 
 class Socks5ProxyServerTest {
 
@@ -180,6 +183,73 @@ class Socks5ProxyServerTest {
         }
     }
 
+    @Test
+    fun `binds several addresses on one port`() = runBlocking<Unit> {
+        // Binding extra 127.x aliases needs a manual lo0 alias on macOS, so
+        // this test only runs where the platform allows it (e.g. Linux).
+        assumeTrue(canBind("127.0.0.2"))
+        val listener = RecordingListener()
+        val server = Socks5ProxyServer(
+            ProxyConfig(bindAddresses = listOf("127.0.0.1", "127.0.0.2"), port = 0),
+            listener,
+        )
+        server.start().getOrThrow()
+        try {
+            val port = listener.listenPort ?: fail("server did not start")
+            assertEquals(listOf("127.0.0.1", "127.0.0.2"), listener.listenAddresses)
+
+            // Both addresses accept SOCKS handshakes on the very same port.
+            for (host in listOf("127.0.0.1", "127.0.0.2")) {
+                Socket(host, port).use { client ->
+                    client.soTimeout = 5_000
+                    client.getOutputStream().apply {
+                        write(byteArrayOf(0x05, 0x01, 0x00))
+                        flush()
+                    }
+                    assertEquals(0x05, client.getInputStream().read())
+                    assertEquals(0x00, client.getInputStream().read())
+                }
+            }
+        } finally {
+            server.stop()
+        }
+    }
+
+    @Test
+    fun `skips unavailable addresses and starts on the rest`() = runBlocking<Unit> {
+        val listener = RecordingListener()
+        val server = Socks5ProxyServer(
+            // 192.0.2.x is TEST-NET-1: never assigned to an interface, so the
+            // bind must fail while the loopback socket still starts.
+            ProxyConfig(bindAddresses = listOf("192.0.2.123", "127.0.0.1"), port = 0),
+            listener,
+        )
+        server.start().getOrThrow()
+        try {
+            val port = listener.listenPort ?: fail("server did not start")
+            assertTrue("127.0.0.1" in listener.listenAddresses)
+            Socket("127.0.0.1", port).use { client ->
+                client.soTimeout = 5_000
+                client.getOutputStream().apply {
+                    write(byteArrayOf(0x05, 0x01, 0x00))
+                    flush()
+                }
+                assertEquals(0x05, client.getInputStream().read())
+            }
+        } finally {
+            server.stop()
+        }
+    }
+
+    private fun canBind(address: String): Boolean = try {
+        ServerSocket().apply {
+            reuseAddress = true
+            bind(InetSocketAddress(address, 0), 1)
+        }.use { true }
+    } catch (_: IOException) {
+        false
+    }
+
     private fun writeConnectRequest(output: OutputStream, host: String, port: Int) {
         val address = host.split('.').map { it.toInt().toByte() }.toByteArray()
         output.write(
@@ -213,6 +283,9 @@ class Socks5ProxyServerTest {
 
     private class RecordingListener : ProxyListener {
         @Volatile
+        var listenAddresses: List<String> = emptyList()
+
+        @Volatile
         var listenPort: Int? = null
 
         @Volatile
@@ -221,7 +294,8 @@ class Socks5ProxyServerTest {
         @Volatile
         var stopped: Boolean = false
 
-        override fun onStarted(listenAddress: String, listenPort: Int) {
+        override fun onStarted(listenAddresses: List<String>, listenPort: Int) {
+            this.listenAddresses = listenAddresses
             this.listenPort = listenPort
         }
 

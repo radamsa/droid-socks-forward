@@ -24,7 +24,7 @@ class ProxyConfigTest {
     fun `rejects malformed addresses`() {
         listOf("", "999.1.1.1", "1.2.3", "localhost", "1.2.3.4.5", ":::").forEach { address ->
             assertTrue(
-                ProxyConfig(bindAddress = address).validationErrors().isNotEmpty(),
+                ProxyConfig(bindAddresses = listOf(address)).validationErrors().isNotEmpty(),
                 "expected $address to be invalid",
             )
         }
@@ -34,10 +34,25 @@ class ProxyConfigTest {
     fun `accepts loopback wildcard and concrete addresses`() {
         listOf("127.0.0.1", "0.0.0.0", "::", "192.168.1.42", "::1", "2001:db8::1").forEach { address ->
             assertTrue(
-                ProxyConfig(bindAddress = address).validationErrors().isEmpty(),
+                ProxyConfig(bindAddresses = listOf(address)).validationErrors().isEmpty(),
                 "expected $address to be valid",
             )
         }
+    }
+
+    @Test
+    fun `accepts several concrete addresses`() {
+        val config = ProxyConfig(bindAddresses = listOf("127.0.0.1", "192.168.1.42"))
+        assertTrue(config.validationErrors().isEmpty())
+    }
+
+    @Test
+    fun `rejects empty and wildcard mixed address lists`() {
+        assertTrue(ProxyConfig(bindAddresses = emptyList()).validationErrors().isNotEmpty())
+        assertTrue(
+            ProxyConfig(bindAddresses = listOf("0.0.0.0", "127.0.0.1")).validationErrors()
+                .isNotEmpty(),
+        )
     }
 
     @Test

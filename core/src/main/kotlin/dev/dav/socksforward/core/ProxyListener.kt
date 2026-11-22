@@ -4,7 +4,7 @@ import dev.dav.socksforward.core.model.ProxyStats
 
 /** Callbacks are invoked from background threads; implementations must be thread safe. */
 interface ProxyListener {
-    fun onStarted(listenAddress: String, listenPort: Int) = Unit
+    fun onStarted(listenAddresses: List<String>, listenPort: Int) = Unit
 
     fun onStats(stats: ProxyStats) = Unit
 

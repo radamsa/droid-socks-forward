@@ -1,12 +1,15 @@
 package dev.dav.socksforward.ui
 
 import android.os.Bundle
+import android.view.ViewGroup
+import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
+import com.google.android.material.checkbox.MaterialCheckBox
 import dev.dav.socksforward.R
 import dev.dav.socksforward.SocksForwardApp
 import dev.dav.socksforward.core.model.AuthCredentials
@@ -14,12 +17,22 @@ import dev.dav.socksforward.core.model.ProxyConfig
 import dev.dav.socksforward.data.SettingsRepository
 import dev.dav.socksforward.databinding.ActivitySettingsBinding
 import dev.dav.socksforward.proxy.ProxyPhase
+import dev.dav.socksforward.util.NetworkAddresses
 import dev.dav.socksforward.util.formatCount
 
 class SettingsActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivitySettingsBinding
     private lateinit var settings: SettingsRepository
+
+    /** One row per concrete address; the wildcard row is kept apart. */
+    private data class BindRow(
+        val address: String,
+        val checkbox: MaterialCheckBox,
+    )
+
+    private val bindRows = mutableListOf<BindRow>()
+    private var wildcardCheck: MaterialCheckBox? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -50,9 +63,7 @@ class SettingsActivity : AppCompatActivity() {
     private fun load() {
         val config = settings.load()
 
-        binding.bindGroup.check(
-            if (config.isWildcard) R.id.bind_all else R.id.bind_local,
-        )
+        buildBindList(config.bindAddresses.toSet())
         binding.portInput.setText(formatCount(config.port))
         binding.maxConnectionsInput.setText(formatCount(config.maxConnections))
         binding.idleTimeoutInput.setText(formatCount(config.idleTimeoutMs / 60_000))
@@ -64,12 +75,91 @@ class SettingsActivity : AppCompatActivity() {
         binding.passwordInput.setText(settings.password())
     }
 
+    /**
+     * Rebuilds the checkbox list: loopback, every address of every active
+     * interface, saved-but-currently-absent addresses (so a network change
+     * does not silently drop the user's choice) and the wildcard row.
+     */
+    private fun buildBindList(selected: Set<String>) {
+        binding.bindList.removeAllViews()
+        bindRows.clear()
+        wildcardCheck = null
+
+        val available = NetworkAddresses.localIpv4Detailed()
+
+        addBindRow(ProxyConfig.LOOPBACK_IPV4, getString(R.string.bind_loopback), selected)
+        available
+            .filterNot { it.address == ProxyConfig.LOOPBACK_IPV4 }
+            .forEach { addBindRow(it.address, "${it.address} · ${it.interfaceName}", selected) }
+        selected
+            .filterNot {
+                it == ProxyConfig.WILDCARD_IPV4 ||
+                    it == ProxyConfig.LOOPBACK_IPV4 ||
+                    available.any { local -> local.address == it }
+            }
+            .forEach { addBindRow(it, getString(R.string.bind_unavailable, it), selected) }
+
+        val wildcard = addBindRow(
+            ProxyConfig.WILDCARD_IPV4,
+            getString(R.string.bind_all),
+            selected,
+            concrete = false,
+        )
+        wildcardCheck = wildcard.checkbox
+        wildcard.checkbox.setOnCheckedChangeListener { _, checked ->
+            // The wildcard socket covers every address, so specific rows make
+            // no sense next to it (and would collide with it).
+            bindRows.forEach { row ->
+                row.checkbox.isEnabled = !checked
+                if (checked) row.checkbox.isChecked = false
+            }
+        }
+        if (wildcard.checkbox.isChecked) {
+            // The listener only fires on change; mirror a migrated wildcard
+            // selection into the initial row state.
+            bindRows.forEach { it.checkbox.isEnabled = false }
+        }
+    }
+
+    private fun addBindRow(
+        address: String,
+        label: String,
+        selected: Set<String>,
+        concrete: Boolean = true,
+    ): BindRow {
+        val checkbox = MaterialCheckBox(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            )
+            text = label
+            isChecked = address in selected
+        }
+        binding.bindList.addView(checkbox)
+        val row = BindRow(address, checkbox)
+        if (concrete) bindRows += row
+        return row
+    }
+
+    private fun selectedAddresses(): List<String> =
+        if (wildcardCheck?.isChecked == true) {
+            listOf(ProxyConfig.WILDCARD_IPV4)
+        } else {
+            bindRows.filter { it.checkbox.isChecked }.map { it.address }
+        }
+
     private fun save() {
         binding.portLayout.error = null
         binding.maxConnectionsLayout.error = null
         binding.idleTimeoutLayout.error = null
         binding.usernameLayout.error = null
         binding.passwordLayout.error = null
+
+        val bindAddresses = selectedAddresses()
+        if (bindAddresses.isEmpty()) {
+            Toast.makeText(this, R.string.error_bind_empty, Toast.LENGTH_LONG).show()
+            return
+        }
 
         val port = binding.portInput.text?.toString()?.trim()?.toIntOrNull()
         if (port == null || port !in ProxyConfig.MIN_PORT..ProxyConfig.MAX_PORT) {
@@ -103,14 +193,8 @@ class SettingsActivity : AppCompatActivity() {
             }
         }
 
-        val bindAddress = if (binding.bindGroup.checkedRadioButtonId == R.id.bind_all) {
-            ProxyConfig.WILDCARD_IPV4
-        } else {
-            ProxyConfig.LOOPBACK_IPV4
-        }
-
         val config = ProxyConfig(
-            bindAddress = bindAddress,
+            bindAddresses = bindAddresses,
             port = port,
             auth = auth,
             maxConnections = maxConnections,
